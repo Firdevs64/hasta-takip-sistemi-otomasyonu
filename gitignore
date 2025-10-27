@@ -1,0 +1,70 @@
+# ========================
+# HastaTakipSistemi .gitignore
+# ========================
+
+# Build klasörleri
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+.vs/
+TestResults/
+*.cache/
+*.log/
+
+# DevExpress ve harici DLL dosyaları
+*.dll
+*.pdb
+*.exe
+*.xml
+*.licenses
+*.manifest
+
+# Geçici dosyalar
+*.tmp
+*.bak
+*.swp
+*.suo
+*.user
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.lock.json
+
+# Paketler ve bağımlılıklar
+packages/
+.nuget/
+*.nupkg
+
+# Config dosyaları (lokal ayarlar)
+appsettings.Development.json
+launchSettings.json
+
+# IDE klasörleri
+.idea/
+.vscode/
+_ReSharper*/
+*.DotSettings.user
+
+# Derleme çıktıları
+*.obj
+*.dbmdl
+*.opendb
+*.dll.config
+*.exe.config
+*.csproj.FileListAbsolute.txt
+*.AssemblyReference.cache
+*.CoreCompileInputs.cache
+*.GenerateResource.cache
+
+# Publish ve backup
+publish/
+*.Publish.xml
+Backup*/
+*.bak
+
+# Diğer gereksizler
+Thumbs.db
+Desktop.ini

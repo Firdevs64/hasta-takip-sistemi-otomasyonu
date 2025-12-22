@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraBars;
+using DevExpress.XtraBars;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Data.SqlClient;
 
 namespace HastaTakipSistemi
 {
@@ -22,6 +21,8 @@ namespace HastaTakipSistemi
         frmSqlBaglanti bgl = new frmSqlBaglanti();
         private void frmIstatistic_Load(object sender, EventArgs e)
         {
+            if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+                return;
             toplamHasta();
             yasOrtalama();
             erkekSayi();

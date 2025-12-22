@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraEditors;
+using DevExpress.XtraEditors;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -76,7 +76,7 @@ namespace HastaTakipSistemi
             txtBolum.Properties.ValueMember = "bolumID";   // Arka planda saklanan ID
 
             // 1. Başlangıçta "[EditValue is null]" yerine görünecek metni ayarla
-            txtBolum.Properties.NullText = "Lütfen durum seçiniz...";
+            txtBolum.Properties.NullText = "Lütfen bölüm seçiniz...";
 
             // 2. Açılır listedeki "durumAd" gibi sütun başlıklarını gizle
             txtBolum.Properties.ShowHeader = false;
@@ -122,8 +122,8 @@ namespace HastaTakipSistemi
                 txtCinsiyet.Text = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hCinsiyet").ToString();
                 txtSikayet.Text = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hSikayet").ToString();
                 txtTarih.Text = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "kTarih").ToString();
-                txtDurum.EditValue = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hDurum").ToString();
-                txtBolum.EditValue = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hBolum").ToString();
+                txtDurum.EditValue = Convert.ToInt32(gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hDurum"));
+                txtBolum.EditValue = Convert.ToInt32(gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hBolum"));
                 lblEx.Text = gridView1.GetRowCellValue(gridView1.FocusedRowHandle, "hExMi").ToString();
             }
         }
@@ -287,6 +287,199 @@ namespace HastaTakipSistemi
         private void tableLayoutPanel2_Paint(object sender, PaintEventArgs e)
         {
 
+        }
+
+        private void lblEx_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnAIOneri_Click(object sender, EventArgs e)
+        {
+            string sikayet = txtSikayet.Text?.Trim();
+            // Hayati bulguları oku (boş olabilir)
+            double? ates = ParseNullableDouble(txtAtes.Text);
+            int? nabiz = ParseNullableInt(txtNabiz.Text);
+
+            // Bulgulardan "kırmızı bayrak" çıkar
+            var vital = VitalFlags(ates, nabiz);
+
+
+            if (string.IsNullOrWhiteSpace(sikayet))
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    "AI önerisi için önce 'Hasta Şikayet' alanını doldur.",
+                    "Bilgi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+                return;
+            }
+
+            var top3 = TriageAI.PredictTop3(sikayet);
+            var best = top3.First();
+
+            // Hayati bulgulara göre güven/öncelik ayarı (basit ama etkili)
+            int extraConfidence = 0;
+            string priorityOverride = null;
+
+            if (vital.IsEmergency)
+            {
+                extraConfidence += 20;          // acil bulgu varsa güveni artır
+                priorityOverride = "Yüksek";    // önceliği yükselt
+            }
+            else if (vital.IsWarning)
+            {
+                extraConfidence += 10;
+            }
+
+            // best değerini güncelle (priority override + confidence clamp)
+            string finalPriority = priorityOverride ?? best.Priority;
+            int baseConfidence = Convert.ToInt32(Math.Round(best.Confidence)); // double gelirse düzgün yuvarlar
+            int finalConfidence = Math.Min(95, baseConfidence + extraConfidence);
+            string finalExplain =
+                best.Explanation +
+                VitalExplainText(ates, nabiz, vital);
+
+
+            // Durum önerisi (Acil/Muayene)
+            string önerilenDurum = DurumFromPriority(finalPriority);
+
+            // Bölüm önerisi: AI “Acil” çıkarırsa bölüm yerine Dahiliye öneriyoruz (istersen bunu kaldırabilirsin)
+            string önerilenBolum = (best.Clinic == "Acil") ? "Dahiliye" : best.Clinic;
+
+            bool bolumOk = SetLookUpByDisplayText(txtBolum, "bolumAd", "bolumID", önerilenBolum);
+            bool durumOk = SetLookUpByDisplayText(txtDurum, "durumAd", "durumID", önerilenDurum);
+
+            // Sonucu göster (hoca burada etkilenir)
+            string msg =
+                "AI Önerisi (Şikayet + Hayati Bulgular)\n\n" +
+                $"- Önerilen Bölüm: {önerilenBolum}\n" +
+                $"- Önerilen Durum: {önerilenDurum}\n" +
+                $"- Güven: %{finalConfidence}\n" +
+                $"- Neden: {finalExplain}\n\n" +
+                "Alternatifler:\n" +
+                $"{top3[1].Clinic} (%{top3[1].Confidence})\n" +
+                $"{top3[2].Clinic} (%{top3[2].Confidence})\n\n" +
+                "Not: Bu sonuçlar karar destek amaçlıdır. Nihai karar sağlık personeline aittir.";
+
+
+            DevExpress.XtraEditors.XtraMessageBox.Show(
+                msg,
+                "Klinik Karar Destek (AI)",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+
+            if (!bolumOk)
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    $"Dikkat: '{önerilenBolum}' bölümü sistemde bulunamadı. Bölüm listesini kontrol et.",
+                    "Uyarı",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+            }
+
+            if (!durumOk)
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    $"Dikkat: '{önerilenDurum}' durumu sistemde bulunamadı. Durum listesini kontrol et.",
+                    "Uyarı",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+            }
+        }
+        private bool SetLookUpByDisplayText(
+            DevExpress.XtraEditors.LookUpEdit edit,
+            string displayColumn,
+            string valueColumn,
+            string displayText)
+        {
+            if (edit.Properties.DataSource is DataTable dt)
+            {
+                var row = dt.AsEnumerable()
+                    .FirstOrDefault(r =>
+                        string.Equals(
+                            r.Field<string>(displayColumn),
+                            displayText,
+                            StringComparison.OrdinalIgnoreCase));
+
+                if (row != null)
+                {
+                    edit.EditValue = row[valueColumn];
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private string DurumFromPriority(string priority)
+        {
+            if (priority == "Yüksek") return "Acil";
+            if (priority == "Orta") return "Muayene";
+            if (priority == "Düşük") return "Muayene";
+            return "Muayene";
+        }
+
+        private double? ParseNullableDouble(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            // TR ondalık için 36,5 yazanlar olur diye:
+            s = s.Trim().Replace(',', '.');
+
+            if (double.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out double v))
+                return v;
+
+            return null;
+        }
+
+        private int? ParseNullableInt(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            if (int.TryParse(s.Trim(), out int v)) return v;
+            return null;
+        }
+
+        private (bool IsEmergency, bool IsWarning) VitalFlags(double? ates, int? nabiz)
+        {
+            bool emergency = false;
+            bool warning = false;
+
+            // Ateş eşikleri (basit klinik mantık)
+            if (ates.HasValue)
+            {
+                if (ates.Value >= 39.0 || ates.Value <= 35.0) emergency = true;
+                else if (ates.Value >= 38.0) warning = true;
+            }
+
+            // Nabız eşikleri
+            if (nabiz.HasValue)
+            {
+                if (nabiz.Value >= 130 || nabiz.Value <= 45) emergency = true;
+                else if (nabiz.Value >= 110) warning = true;
+            }
+
+            return (emergency, warning);
+        }
+
+        private string VitalExplainText(double? ates, int? nabiz, (bool IsEmergency, bool IsWarning) vital)
+        {
+            // Kullanıcı girmediyse sessiz geç
+            if (!ates.HasValue && !nabiz.HasValue) return "";
+
+            string a = ates.HasValue ? $"{ates:0.0}°C" : "—";
+            string n = nabiz.HasValue ? $"{nabiz} bpm" : "—";
+
+            if (vital.IsEmergency)
+                return $" | Hayati bulgular: Ateş={a}, Nabız={n} (kırmızı bayrak)";
+            if (vital.IsWarning)
+                return $" | Hayati bulgular: Ateş={a}, Nabız={n} (dikkat)";
+
+            return $" | Hayati bulgular: Ateş={a}, Nabız={n} (normal aralık)";
         }
     }
 }

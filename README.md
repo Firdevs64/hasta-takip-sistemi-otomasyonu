@@ -69,6 +69,4 @@ Ayrıca projede **AI kavramının** yalnızca görüntü işleme veya tahlil ver
 sınırlı olmadığı, **metin ve kural tabanlı yaklaşımlarla** da uygulanabileceği
 gösterilmiştir.
 
-## 👩‍💻 Geliştirici
-Firdevs Köse  
-Software Engineering Student  
+
